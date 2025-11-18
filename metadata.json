@@ -1,0 +1,5 @@
+{
+  "name": "Interaktív AI Szótár",
+  "description": "Egy interaktív AI-szótár, amely a Gemini API erejét használja a magyar AI-diskurzus sztenderdizálására és az intelligens tudásfeltárás elősegítésére.",
+  "requestFramePermissions": []
+}
