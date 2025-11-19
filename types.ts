@@ -22,20 +22,28 @@ export enum Category {
   Applications = "Alkalmazások",
 }
 
-export interface GroundingSource {
-  title: string;
-  uri: string;
-}
-
 export interface AIAnalysis {
   abstractDefinition: string;
   hungarianExample: string;
   relevance: string;
   relatedTerms: string[];
-  groundingSources?: GroundingSource[];
 }
 
 export interface ChatMessage {
     sender: 'user' | 'ai';
     text: string;
+}
+
+export interface Scenario {
+    id: string;
+    title: string;
+    description: string;
+    task: string;
+    role: string;
+}
+
+export interface ScenarioResult {
+    aiResponse: string;
+    critique: string;
+    score: number;
 }

@@ -4,21 +4,23 @@ import { dictionaryData } from './data/dictionary';
 import { Term, Category } from './types';
 import { CATEGORIES } from './constants';
 import TermDetail from './components/TermDetail';
-import { SearchIcon, SparklesIcon, ChatIcon, AppLogo } from './components/Icons';
+import { SearchIcon, SparklesIcon, ChatIcon, BeakerIcon } from './components/Icons';
 import ChatBot from './components/ChatBot';
 import ComparisonView from './components/ComparisonView';
 import QuizView from './components/QuizView';
+import ScenarioGymView from './components/ScenarioGymView';
+import { hasIllustration } from './components/IllustrationRegistry';
 
 const App: React.FC = () => {
   const [terms, setTerms] = useState<Term[]>(dictionaryData);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
-  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
+  const [showInteractiveOnly, setShowInteractiveOnly] = useState(false);
+  const [selectedTerm, setSelectedTerm] = useState<Term | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [comparisonTerms, setComparisonTerms] = useState<Term[]>([]);
   const [isQuizActive, setIsQuizActive] = useState(false);
-
-  const selectedTerm = useMemo(() => terms.find(t => t.id === selectedTermId) || null, [terms, selectedTermId]);
+  const [isScenarioGymActive, setIsScenarioGymActive] = useState(false);
 
   useEffect(() => {
     // Increment search frequency for top terms on load to simulate popularity
@@ -59,6 +61,9 @@ const App: React.FC = () => {
   const displayedTerms = useMemo(() => {
     const filtered = terms
       .filter(term => {
+        if (showInteractiveOnly && !hasIllustration(term.id)) {
+            return false;
+        }
         if (activeCategory === 'All') return true;
         return term.category === activeCategory;
       })
@@ -77,11 +82,11 @@ const App: React.FC = () => {
         }
         return a.term_hu.localeCompare(b.term_hu);
     });
-  }, [terms, searchTerm, activeCategory]);
+  }, [terms, searchTerm, activeCategory, showInteractiveOnly]);
 
 
   const handleSelectTerm = (term: Term) => {
-      setSelectedTermId(term.id);
+      setSelectedTerm(term);
       // increment search frequency
       setTerms(prevTerms =>
         prevTerms.map(t =>
@@ -92,7 +97,7 @@ const App: React.FC = () => {
   };
 
   const handleBack = () => {
-    setSelectedTermId(null);
+    setSelectedTerm(null);
     setComparisonTerms([]);
   };
 
@@ -113,129 +118,179 @@ const App: React.FC = () => {
     }
   };
 
+
+  const MainContent = () => (
+    <div className="p-4 sm:p-6 md:p-8">
+      <header className="text-center mb-10">
+        <div className="flex justify-center items-center gap-3">
+            <SparklesIcon className="w-10 h-10 text-sky-400" />
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-indigo-500">Interaktív AI Szótár</h1>
+        </div>
+        <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-400">
+          Fedezd fel a mesterséges intelligencia világát a Gemini API segítségével.
+        </p>
+      </header>
+
+      <div className="max-w-4xl mx-auto space-y-10">
+        {/* Search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Keress a fogalmak között (pl. 'Nagy nyelvi modell')"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+          />
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <SearchIcon className="w-5 h-5 text-slate-500" />
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div className="flex flex-wrap justify-center gap-2">
+          <button
+            onClick={() => setShowInteractiveOnly(!showInteractiveOnly)}
+            className={`px-4 py-2 text-sm font-semibold rounded-full transition-all flex items-center gap-2 ${
+                showInteractiveOnly 
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25' 
+                : 'bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border border-purple-500/30'
+            }`}
+          >
+            <SparklesIcon className="w-4 h-4" />
+            Interaktív
+          </button>
+
+          <button onClick={() => setActiveCategory('All')} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${activeCategory === 'All' ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>Összes</button>
+          {CATEGORIES.map(cat => (
+            <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${activeCategory === cat ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+        
+        {/* Comparison CTA */}
+        {comparisonTerms.length > 0 && (
+             <div className="bg-slate-800 rounded-lg p-4 flex items-center justify-between sticky top-4 z-20 shadow-lg border border-slate-700">
+                 <div>
+                    <h3 className="font-semibold text-white">Összehasonlítás</h3>
+                    <p className="text-sm text-slate-400">
+                        {comparisonTerms.length === 1 ? 'Válassz még egy fogalmat az összehasonlításhoz.' : 'Kiválasztva összehasonlításra:'}
+                    </p>
+                     <div className="flex gap-2 mt-2">
+                        {comparisonTerms.map(t => <span key={t.id} className="text-xs bg-sky-500/20 text-sky-300 px-2 py-1 rounded-md">{t.term_hu}</span>)}
+                    </div>
+                 </div>
+                 <button 
+                    disabled={comparisonTerms.length !== 2}
+                    onClick={() => setSelectedTerm(null) /* This will trigger comparison view */}
+                    className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                     Összehasonlítás
+                 </button>
+             </div>
+        )}
+        
+        {/* Terms List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {displayedTerms.map(term => {
+            const isInteractive = hasIllustration(term.id);
+            return (
+            <div 
+              key={term.id} 
+              onClick={() => handleSelectTerm(term)}
+              className={`group p-5 rounded-xl shadow-lg transition-all duration-300 flex flex-col justify-between cursor-pointer border relative overflow-hidden ${
+                isInteractive 
+                    ? 'bg-slate-800 border-purple-500/50 shadow-purple-500/20 hover:shadow-purple-500/40 hover:border-purple-400' 
+                    : 'bg-slate-800 border-slate-700 hover:shadow-sky-500/10 hover:border-sky-500/50'
+              }`}
+            >
+                {/* Subtle gradient background for interactive cards */}
+                {isInteractive && <div className="absolute top-0 right-0 p-16 bg-purple-500/5 rounded-bl-full blur-2xl pointer-events-none"></div>}
+
+                <div>
+                    <div className="flex justify-between items-start gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <h2 className={`text-xl font-bold truncate pr-1 transition-colors ${isInteractive ? 'text-slate-100 group-hover:text-purple-300' : 'text-slate-100 group-hover:text-sky-400'}`}>
+                                {term.term_hu}
+                            </h2>
+                            {isInteractive && <SparklesIcon className="w-5 h-5 text-purple-400 shrink-0 animate-pulse" />}
+                        </div>
+                        <div onClick={(e) => { e.stopPropagation(); handleSelectForComparison(term); }} className="p-1 -m-1">
+                            <input 
+                                type="checkbox" 
+                                checked={!!comparisonTerms.find(t => t.id === term.id)}
+                                readOnly
+                                className="appearance-none h-5 w-5 shrink-0 rounded border border-slate-600 bg-slate-700 checked:bg-sky-500 checked:border-sky-500 cursor-pointer transition-colors relative"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e")`,
+                                    backgroundPosition: 'center',
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundSize: '100%'
+                                }}
+                                title="Kijelölés összehasonlításra"
+                            />
+                        </div>
+                    </div>
+                    <p className="text-sm text-slate-400 mb-3">{term.term_en}</p>
+                    <p className="text-slate-300 text-sm leading-relaxed line-clamp-3 relative z-10">{term.definition}</p>
+                </div>
+              <div className="mt-4 pt-4 border-t border-slate-700/50 flex justify-between items-center text-xs text-slate-400 relative z-10">
+                <span className="font-medium text-sky-400 bg-sky-400/10 px-2 py-1 rounded-full truncate max-w-[70%] sm:max-w-[200px]" title={term.category}>
+                    {term.category}
+                </span>
+                 <div className="flex items-center gap-1 shrink-0" title="Keresési gyakoriság">
+                    <SearchIcon className="w-3 h-3"/>
+                    <span>{term.search_frequency}</span>
+                 </div>
+              </div>
+            </div>
+          )})}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-900 relative">
-        {!selectedTerm && comparisonTerms.length !== 2 && !isQuizActive && (
-            <div className="absolute top-6 right-6 z-10">
+        {!selectedTerm && comparisonTerms.length !== 2 && !isQuizActive && !isScenarioGymActive && (
+            <div className="absolute top-6 right-6 z-10 flex gap-4">
+                <button
+                    onClick={() => setIsScenarioGymActive(true)}
+                    className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold px-4 py-2.5 rounded-lg shadow-lg hover:shadow-sky-500/10 transition-all transform hover:-translate-y-0.5 inline-flex items-center gap-2 group"
+                    title="Szituációs Labor - Gyakorolj!"
+                >
+                    <BeakerIcon className="w-5 h-5 text-sky-400 group-hover:text-sky-300" />
+                    <span className="hidden sm:inline">Szituációs Labor</span>
+                </button>
                 <button
                     onClick={() => setIsQuizActive(true)}
                     className="bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-300 hover:to-indigo-400 text-white font-bold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-sky-500/25 transition-all transform hover:-translate-y-0.5 inline-flex items-center gap-2"
                     title="Tedd próbára a tudásod!"
                 >
                     <SparklesIcon className="w-5 h-5 text-white" />
-                    AI Kvíz
+                    <span className="hidden sm:inline">AI Kvíz</span>
                 </button>
             </div>
         )}
       <main>
         {isQuizActive ? (
             <QuizView terms={terms} onBack={() => setIsQuizActive(false)} />
+        ) : isScenarioGymActive ? (
+            <ScenarioGymView onBack={() => setIsScenarioGymActive(false)} />
         ) : selectedTerm ? (
           <TermDetail term={selectedTerm} onBack={handleBack} onVote={handleVote} onSelectRelatedTerm={handleSelectRelatedTermByName} />
         ) : comparisonTerms.length === 2 ? (
             <ComparisonView terms={[comparisonTerms[0], comparisonTerms[1]]} onBack={handleBack} />
         ) : (
-            <div className="p-4 sm:p-6 md:p-8">
-            <header className="text-center mb-10">
-              <div className="flex justify-center items-center gap-4">
-                  <AppLogo className="w-14 h-14 text-sky-400" />
-                  <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-indigo-500">Interaktív AI Szótár</h1>
-              </div>
-              <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-400">
-                Fedezd fel a mesterséges intelligencia világát a Gemini API segítségével.
-              </p>
-            </header>
-      
-            <div className="max-w-4xl mx-auto space-y-10">
-              {/* Search */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Keress a fogalmak között (pl. 'Nagy nyelvi modell')"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
-                />
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <SearchIcon className="w-5 h-5 text-slate-500" />
-                </div>
-              </div>
-      
-              {/* Categories */}
-              <div className="flex flex-wrap justify-center gap-2">
-                <button onClick={() => setActiveCategory('All')} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${activeCategory === 'All' ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>Összes</button>
-                {CATEGORIES.map(cat => (
-                  <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${activeCategory === cat ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
-                    {cat}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Comparison CTA */}
-              {comparisonTerms.length > 0 && (
-                   <div className="bg-slate-800 rounded-lg p-4 flex items-center justify-between sticky top-4 z-20 shadow-lg border border-slate-700">
-                       <div>
-                          <h3 className="font-semibold text-white">Összehasonlítás</h3>
-                          <p className="text-sm text-slate-400">
-                              {comparisonTerms.length === 1 ? 'Válassz még egy fogalmat az összehasonlításhoz.' : 'Kiválasztva összehasonlításra:'}
-                          </p>
-                           <div className="flex gap-2 mt-2">
-                              {comparisonTerms.map(t => <span key={t.id} className="text-xs bg-sky-500/20 text-sky-300 px-2 py-1 rounded-md">{t.term_hu}</span>)}
-                          </div>
-                       </div>
-                       <button 
-                          disabled={comparisonTerms.length !== 2}
-                          onClick={() => setSelectedTermId(null) /* This will trigger comparison view */}
-                          className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                           Összehasonlítás
-                       </button>
-                   </div>
-              )}
-              
-              {/* Terms List */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedTerms.map(term => (
-                  <div 
-                    key={term.id} 
-                    onClick={() => handleSelectTerm(term)}
-                    className="group bg-slate-800 p-5 rounded-xl shadow-lg hover:shadow-sky-500/10 border border-slate-700 hover:border-sky-500/50 transition-all duration-300 flex flex-col justify-between cursor-pointer"
-                  >
-                      <div>
-                          <div className="flex justify-between items-start">
-                              <h2 className="text-xl font-bold text-slate-100 transition-colors group-hover:text-sky-400">{term.term_hu}</h2>
-                              <input 
-                                  type="checkbox" 
-                                  checked={!!comparisonTerms.find(t => t.id === term.id)}
-                                  onChange={() => handleSelectForComparison(term)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="form-checkbox h-5 w-5 bg-slate-700 border-slate-600 text-sky-500 rounded focus:ring-sky-500 cursor-pointer"
-                                  title="Kijelölés összehasonlításra"
-                              />
-                          </div>
-                          <p className="text-sm text-slate-400 mb-3">{term.term_en}</p>
-                          <p className="text-slate-300 text-sm leading-relaxed line-clamp-3">{term.definition}</p>
-                      </div>
-                    <div className="mt-4 pt-4 border-t border-slate-700/50 flex justify-between items-center text-xs text-slate-400">
-                      <span className="font-medium text-sky-400 bg-sky-400/10 px-2 py-1 rounded-full">{term.category}</span>
-                       <div className="flex items-center gap-1" title="Keresési gyakoriság">
-                          <SearchIcon className="w-3 h-3"/>
-                          <span>{term.search_frequency}</span>
-                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <MainContent />
         )}
       </main>
 
       {isChatOpen && <ChatBot onClose={() => setIsChatOpen(false)} dictionary={terms} />}
       
-      {!isQuizActive && (
+      {!isQuizActive && !isScenarioGymActive && (
         <button 
           onClick={() => setIsChatOpen(true)}
-          className="fixed bottom-6 right-6 bg-sky-600 hover:bg-sky-500 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110"
+          className="fixed bottom-6 right-6 bg-sky-600 hover:bg-sky-500 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110 z-50"
           title="AI Asszisztens"
         >
           <ChatIcon className="w-7 h-7" />

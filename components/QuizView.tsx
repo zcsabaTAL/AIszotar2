@@ -14,14 +14,9 @@ interface QuizQuestion {
   definition: string;
 }
 
-// Fisher-Yates shuffle algorithm for unbiased randomization
+// Helper to shuffle array
 const shuffleArray = <T,>(array: T[]): T[] => {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
+  return [...array].sort(() => Math.random() - 0.5);
 };
 
 const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
@@ -46,10 +41,8 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
         for (let i = 0; i < Math.min(totalQuestions, shuffledTerms.length); i++) {
             const correctAnswer = shuffledTerms[i];
             const otherTerms = allTerms.filter(t => t.id !== correctAnswer.id);
-            // Select 3 wrong answers randomly
             const wrongOptions = shuffleArray(otherTerms).slice(0, 3).map(t => t.term_hu);
             
-            // Combine and shuffle options
             const options = shuffleArray([correctAnswer.term_hu, ...wrongOptions]);
             
             quizQuestions.push({
@@ -104,20 +97,20 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
     setIsAnswered(false);
     setSelectedAnswer(null);
     setTimeLeft(timePerQuestion);
-    // Logic triggers re-generation via useEffect when component remounts or we could extract logic.
-    // For simplicity in this view, we rely on state reset. 
-    // To force re-shuffle properly without complex extraction:
-    const allTerms = [...terms];
-    const shuffledTerms = shuffleArray(allTerms);
-    const quizQuestions: QuizQuestion[] = [];
-    for (let i = 0; i < Math.min(totalQuestions, shuffledTerms.length); i++) {
-        const correctAnswer = shuffledTerms[i];
-        const otherTerms = allTerms.filter(t => t.id !== correctAnswer.id);
-        const wrongOptions = shuffleArray(otherTerms).slice(0, 3).map(t => t.term_hu);
-        const options = shuffleArray([correctAnswer.term_hu, ...wrongOptions]);
-        quizQuestions.push({ correctAnswer, options, definition: correctAnswer.definition });
+    // Re-generate questions by re-triggering useEffect's logic
+    if (terms.length >= 4) {
+        const allTerms = [...terms];
+        const shuffledTerms = shuffleArray(allTerms);
+        const quizQuestions: QuizQuestion[] = [];
+        for (let i = 0; i < Math.min(totalQuestions, shuffledTerms.length); i++) {
+            const correctAnswer = shuffledTerms[i];
+            const otherTerms = allTerms.filter(t => t.id !== correctAnswer.id);
+            const wrongOptions = shuffleArray(otherTerms).slice(0, 3).map(t => t.term_hu);
+            const options = shuffleArray([correctAnswer.term_hu, ...wrongOptions]);
+            quizQuestions.push({ correctAnswer, options, definition: correctAnswer.definition });
+        }
+        setQuestions(quizQuestions);
     }
-    setQuestions(quizQuestions);
   }
 
   if (questions.length === 0) {

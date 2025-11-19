@@ -1,6 +1,6 @@
 
-import { GoogleGenAI } from "@google/genai";
-import { Term, AIAnalysis, GroundingSource } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { Term, Scenario, ScenarioResult } from "../types";
 
 const API_KEY = process.env.API_KEY;
 
@@ -10,9 +10,6 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-// 1. In-Memory Cache Implementation
-const analysisCache = new Map<string, AIAnalysis>();
-
 const dictionaryContext = `
   You are an expert AI dictionary assistant for Hungarian users. 
   Your primary knowledge base is a predefined list of AI terms.
@@ -21,35 +18,23 @@ const dictionaryContext = `
   Always respond in Hungarian.
 `;
 
-export const clarifyTerm = async (term: Term): Promise<AIAnalysis> => {
-  // Check Cache First
-  if (analysisCache.has(term.id)) {
-    console.log(`Serving analysis for ${term.term_hu} from cache.`);
-    return analysisCache.get(term.id)!;
-  }
-
+export const clarifyTerm = async (term: Term) => {
   const model = "gemini-2.5-flash";
-  
-  // Since we use Google Search Grounding, we CANNOT use responseSchema (per SDK rules).
-  // We must instruct the model via prompt to return JSON.
   const prompt = `
     A felhasználó a következő AI fogalomra keresett rá:
     - Magyar kifejezés: "${term.term_hu}"
     - Angol kifejezés: "${term.term_en}"
     - Alap definíció: "${term.definition}"
     - Kategória: "${term.category}"
-    
-    Használd a Google Keresést (Google Search), hogy naprakész információkat találj erről a fogalomról.
-    
-    A válaszod KIZÁRÓLAG egy érvényes JSON objektum legyen (Markdown formázás nélkül), a következő struktúrában:
-    {
-      "abstractDefinition": "A definíció közérthető, de szakmailag pontos újrafogalmazása (2 mondat).",
-      "hungarianExample": "Rövid, gyakorlatias példa magyar kontextusban.",
-      "relevance": "A fogalom relevanciája az EU szabályozásban vagy a magyar sajtóban (a keresési találatok alapján).",
-      "relatedTerms": ["kapcsolódó fogalom 1", "kapcsolódó fogalom 2", "kapcsolódó fogalom 3"]
-    }
-    
-    A "relatedTerms" tömbben csak a fogalmak magyar nevét add meg.
+    - Példa: "${term.example}"
+
+    A feladatod a következő struktúrában kiegészíteni ezt az információt, Google Search adatok alapján frissítve ahol szükséges:
+    1.  **Absztrakt definíció (2 mondat):** Fogalmazd újra a definíciót közérthetően, de szakmailag pontosan.
+    2.  **Magyar példa:** Adj egy rövid, gyakorlatias példát magyar kontextusban.
+    3.  **EU/HU médiatrend relevancia:** Említsd meg, hogy a fogalom mennyire releváns jelenleg az Európai Unió szabályozásában vagy a magyar sajtóban. Ha nincs konkrét említés, írd, hogy általánosan fontos a területen.
+    4.  **Kapcsolódó fogalmak:** Javasolj 3 kapcsolódó fogalmat a szótárból, amelyek segítik a kontextus megértését. Csak a fogalmak magyar nevét add meg, vesszővel elválasztva.
+
+    A válaszod legyen egy JSON objektum a következő kulcsokkal: "abstractDefinition", "hungarianExample", "relevance", "relatedTerms". A "relatedTerms" egy string tömb legyen.
   `;
 
   try {
@@ -57,45 +42,13 @@ export const clarifyTerm = async (term: Term): Promise<AIAnalysis> => {
         model,
         contents: prompt,
         config: {
-            tools: [{ googleSearch: {} }], // 2. Deep Grounding Integration
-            // responseSchema is NOT allowed when using tools
+            tools: [{googleSearch: {}}],
         }
     });
-    
-    const text = response.text;
-    if (!text) {
-        throw new Error("No content generated");
-    }
-
-    // Clean up potential Markdown code blocks if the model ignores "no markdown" instruction
-    const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsedData: AIAnalysis = JSON.parse(jsonString);
-
-    // Extract Grounding Metadata (Sources)
-    const groundingSources: GroundingSource[] = [];
-    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    
-    if (chunks) {
-        chunks.forEach(chunk => {
-            if (chunk.web) {
-                groundingSources.push({
-                    title: chunk.web.title || 'Online forrás',
-                    uri: chunk.web.uri || '#'
-                });
-            }
-        });
-    }
-
-    const finalResult: AIAnalysis = {
-        ...parsedData,
-        groundingSources: groundingSources.length > 0 ? groundingSources : undefined
-    };
-
-    // Save to Cache
-    analysisCache.set(term.id, finalResult);
-
-    return finalResult;
-
+    const text = response.text.trim();
+    // Sometimes the model wraps the JSON in markdown backticks
+    const cleanJson = text.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    return JSON.parse(cleanJson);
   } catch (error) {
     console.error("Error clarifying term with Gemini:", error);
     return {
@@ -121,7 +74,7 @@ export const getChatbotResponse = async (history: { role: string; parts: { text:
 };
 
 export const compareTerms = async (term1: Term, term2: Term) => {
-    const model = 'gemini-3-pro-preview';
+    const model = 'gemini-2.5-pro';
     const prompt = `
         Hasonlítsd össze a következő két mesterséges intelligencia fogalmat magyar felhasználók számára.
         A válaszod legyen világos, strukturált és közérthető.
@@ -153,5 +106,61 @@ export const compareTerms = async (term1: Term, term2: Term) => {
     } catch (error) {
         console.error("Error comparing terms with Gemini:", error);
         return "Hiba történt a fogalmak összehasonlítása során.";
+    }
+};
+
+export const evaluateScenario = async (scenario: Scenario, userPrompt: string): Promise<ScenarioResult> => {
+    const model = 'gemini-2.5-flash';
+    
+    const prompt = `
+        Te egy profi AI Prompt Engineer oktató vagy.
+        
+        A felhasználó egy szituációs feladatot old meg (Szituációs Labor).
+        
+        **A szcenárió:**
+        - Cím: ${scenario.title}
+        - Feladat: ${scenario.task}
+        - Az AI szerepe, amit játszania kellene: ${scenario.role}
+        
+        **A felhasználó promptja:**
+        "${userPrompt}"
+        
+        **A te feladatod (kettős):**
+        1. SZIMULÁLD le, hogy mit válaszolna az AI a felhasználó promptjára (az AI szerepében maradva).
+        2. ÉRTÉKELD a felhasználó promptjának minőségét 1-5 skálán, és adj építő kritikát (magyarul).
+        
+        Válaszolj JSON formátumban a következő struktúrában:
+        {
+          "aiResponse": "Az AI szimulált válasza...",
+          "critique": "Rövid visszajelzés a prompt erősségeiről és hiányosságairól...",
+          "score": 3 (szám 1 és 5 között)
+        }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        aiResponse: { type: Type.STRING },
+                        critique: { type: Type.STRING },
+                        score: { type: Type.NUMBER }
+                    }
+                }
+            }
+        });
+        
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error evaluating scenario:", error);
+        return {
+            aiResponse: "Hiba történt a szimuláció során.",
+            critique: "Nem sikerült kiértékelni a promptot.",
+            score: 0
+        };
     }
 };

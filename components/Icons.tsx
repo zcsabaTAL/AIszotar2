@@ -58,34 +58,8 @@ export const LoadingSpinner = ({ className = 'w-8 h-8' }: { className?: string }
   </svg>
 );
 
-export const AppLogo = ({ className = 'w-10 h-10' }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" className={className}>
-    <defs>
-      <linearGradient id="logo_gradient" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#38bdf8" /> 
-        <stop offset="1" stopColor="#6366f1" />
-      </linearGradient>
-    </defs>
-    {/* Open Book Base */}
-    <path 
-        d="M10 16 C 10 13 13 13 18 13 C 22 13 24 17 24 17 C 24 17 26 13 30 13 C 35 13 38 13 38 16 V 36 C 38 39 35 39 30 39 C 26 39 24 35 24 35 C 24 35 22 39 18 39 C 13 39 10 39 10 36 Z" 
-        stroke="url(#logo_gradient)" 
-        strokeWidth="3" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-    />
-    {/* Spine / Neural Line */}
-    <path d="M24 17 V 35" stroke="url(#logo_gradient)" strokeWidth="2" strokeLinecap="round" />
-    
-    {/* AI/Spark Connectivity Rising from the book */}
-    <circle cx="24" cy="8" r="3" fill="url(#logo_gradient)" />
-    <path d="M24 11 V 17" stroke="url(#logo_gradient)" strokeWidth="2" />
-    
-    {/* Side Connections */}
-    <circle cx="14" cy="10" r="2" fill="url(#logo_gradient)" opacity="0.8" />
-    <path d="M14.5 11.5 L 22 16" stroke="url(#logo_gradient)" strokeWidth="1.5" opacity="0.8" />
-    
-    <circle cx="34" cy="10" r="2" fill="url(#logo_gradient)" opacity="0.8" />
-    <path d="M33.5 11.5 L 26 16" stroke="url(#logo_gradient)" strokeWidth="1.5" opacity="0.8" />
+export const BeakerIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
   </svg>
 );

@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Term, AIAnalysis } from '../types';
 import { clarifyTerm } from '../services/geminiService';
 import { BackIcon, ThumbsUpIcon, ThumbsDownIcon, SparklesIcon, LoadingSpinner } from './Icons';
+import { getIllustration } from './IllustrationRegistry';
 
 interface TermDetailProps {
   term: Term;
@@ -15,26 +16,24 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, onBack, onVote, onSelectR
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const fetchAnalysis = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await clarifyTerm(term);
+      setAnalysis(result);
+    } catch (error) {
+      console.error('Failed to fetch AI analysis:', error);
+      setAnalysis(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [term]);
+
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchAnalysis = async () => {
-      setIsLoading(true);
-      try {
-        const result = await clarifyTerm(term);
-        if (isMounted) setAnalysis(result);
-      } catch (error) {
-        console.error('Failed to fetch AI analysis:', error);
-        if (isMounted) setAnalysis(null);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-
     fetchAnalysis();
+  }, [fetchAnalysis]);
 
-    return () => { isMounted = false; };
-  }, [term.id]); // Only fetch when term ID changes
+  const illustration = getIllustration(term.id);
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto animate-fade-in">
@@ -46,7 +45,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, onBack, onVote, onSelectR
         Vissza a listához
       </button>
 
-      <div className="bg-slate-800 rounded-xl shadow-lg p-6">
+      <div className="bg-slate-800 rounded-xl shadow-lg p-6 mb-8">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-700 pb-4 mb-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-white">{term.term_hu}</h1>
@@ -56,6 +55,17 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, onBack, onVote, onSelectR
             {term.category}
           </div>
         </div>
+        
+        {/* Interactive Illustration Section */}
+        {illustration && (
+          <div className="mb-8 bg-slate-900/30 border border-sky-500/30 rounded-xl p-5 shadow-inner">
+             <div className="flex items-center gap-2 mb-4">
+                <SparklesIcon className="w-5 h-5 text-sky-400" />
+                <h3 className="text-lg font-bold text-sky-100">{illustration.title}</h3>
+             </div>
+             <illustration.component />
+          </div>
+        )}
 
         <div className="space-y-6">
           <div>
@@ -67,7 +77,7 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, onBack, onVote, onSelectR
             <p className="text-slate-300 leading-relaxed italic">"{term.example}"</p>
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-300 mb-2">Ajánlott Források (Statikus)</h2>
+            <h2 className="text-xl font-semibold text-slate-300 mb-2">Források</h2>
             <ul className="list-disc list-inside text-slate-400 space-y-1">
               {term.sources.map((source, index) => (
                 <li key={index}>
@@ -106,16 +116,16 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, onBack, onVote, onSelectR
       <div className="mt-8 bg-slate-800/50 border border-sky-500/20 rounded-xl shadow-lg p-6">
         <div className="flex items-center gap-3 mb-4">
           <SparklesIcon className="w-7 h-7 text-sky-400" />
-          <h2 className="text-2xl font-bold text-sky-400">AI Elemzés és Kutatás</h2>
+          <h2 className="text-2xl font-bold text-sky-400">AI Elemzés</h2>
         </div>
         {isLoading ? (
           <div className="flex flex-col justify-center items-center h-40 text-center">
             <LoadingSpinner className="w-10 h-10 text-sky-400" />
-            <p className="mt-4 text-slate-400">Élő adatok keresése...</p>
-            <p className="text-sm text-slate-500">A Gemini modell a weben kutat a legfrissebb infókért.</p>
+            <p className="mt-4 text-slate-400">AI elemzés betöltése...</p>
+            <p className="text-sm text-slate-500">A Gemini modell kiegészítő információkat keres.</p>
           </div>
         ) : analysis ? (
-          <div className="space-y-6 text-slate-300">
+          <div className="space-y-4 text-slate-300">
             <div>
               <h3 className="font-semibold text-slate-100 mb-1">Közérthető Definíció</h3>
               <p>{analysis.abstractDefinition}</p>
@@ -128,29 +138,6 @@ const TermDetail: React.FC<TermDetailProps> = ({ term, onBack, onVote, onSelectR
               <h3 className="font-semibold text-slate-100 mb-1">Relevancia (EU/HU)</h3>
               <p>{analysis.relevance}</p>
             </div>
-            
-            {/* Dynamic Grounding Sources Section */}
-            {analysis.groundingSources && analysis.groundingSources.length > 0 && (
-              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
-                <h3 className="font-semibold text-slate-100 mb-2 text-sm uppercase tracking-wider">Aktuális online források</h3>
-                <ul className="space-y-2">
-                  {analysis.groundingSources.map((source, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-sky-500 mt-1">›</span>
-                      <a 
-                        href={source.uri} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sky-400 hover:text-sky-300 text-sm hover:underline break-all"
-                      >
-                        {source.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             {analysis.relatedTerms && analysis.relatedTerms.length > 0 && (
                 <div>
                     <h3 className="font-semibold text-slate-100 mb-2">Kapcsolódó Fogalmak</h3>
