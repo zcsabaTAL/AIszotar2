@@ -14,9 +14,14 @@ interface QuizQuestion {
   definition: string;
 }
 
-// Helper to shuffle array
+// Fisher-Yates shuffle algorithm for unbiased randomization
 const shuffleArray = <T,>(array: T[]): T[] => {
-  return [...array].sort(() => Math.random() - 0.5);
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
 };
 
 const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
@@ -25,11 +30,13 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [isAnswered, setIsAnswered] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60);
 
   const totalQuestions = 10;
+  const timePerQuestion = 60;
 
   useEffect(() => {
-    if (terms.length < 4) return; // Not enough terms for a quiz
+    if (terms.length < 4) return; 
 
     const generateQuestions = () => {
         const allTerms = [...terms];
@@ -39,8 +46,10 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
         for (let i = 0; i < Math.min(totalQuestions, shuffledTerms.length); i++) {
             const correctAnswer = shuffledTerms[i];
             const otherTerms = allTerms.filter(t => t.id !== correctAnswer.id);
+            // Select 3 wrong answers randomly
             const wrongOptions = shuffleArray(otherTerms).slice(0, 3).map(t => t.term_hu);
             
+            // Combine and shuffle options
             const options = shuffleArray([correctAnswer.term_hu, ...wrongOptions]);
             
             quizQuestions.push({
@@ -54,6 +63,23 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
 
     generateQuestions();
   }, [terms]);
+
+  useEffect(() => {
+    if (isAnswered || currentQuestionIndex >= questions.length) return;
+
+    const timer = setInterval(() => {
+        setTimeLeft((prevTime) => {
+            if (prevTime <= 1) {
+                clearInterval(timer);
+                setIsAnswered(true); // Auto-submit when time is up
+                return 0;
+            }
+            return prevTime - 1;
+        });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isAnswered, currentQuestionIndex, questions.length]);
   
   const handleAnswerSelect = (answer: string) => {
     if (isAnswered) return;
@@ -68,6 +94,7 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
   const handleNextQuestion = () => {
     setIsAnswered(false);
     setSelectedAnswer(null);
+    setTimeLeft(timePerQuestion);
     setCurrentQuestionIndex(prev => prev + 1);
   };
   
@@ -76,20 +103,21 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
     setScore(0);
     setIsAnswered(false);
     setSelectedAnswer(null);
-    // Re-generate questions by re-triggering useEffect's logic
-    if (terms.length >= 4) {
-        const allTerms = [...terms];
-        const shuffledTerms = shuffleArray(allTerms);
-        const quizQuestions: QuizQuestion[] = [];
-        for (let i = 0; i < Math.min(totalQuestions, shuffledTerms.length); i++) {
-            const correctAnswer = shuffledTerms[i];
-            const otherTerms = allTerms.filter(t => t.id !== correctAnswer.id);
-            const wrongOptions = shuffleArray(otherTerms).slice(0, 3).map(t => t.term_hu);
-            const options = shuffleArray([correctAnswer.term_hu, ...wrongOptions]);
-            quizQuestions.push({ correctAnswer, options, definition: correctAnswer.definition });
-        }
-        setQuestions(quizQuestions);
+    setTimeLeft(timePerQuestion);
+    // Logic triggers re-generation via useEffect when component remounts or we could extract logic.
+    // For simplicity in this view, we rely on state reset. 
+    // To force re-shuffle properly without complex extraction:
+    const allTerms = [...terms];
+    const shuffledTerms = shuffleArray(allTerms);
+    const quizQuestions: QuizQuestion[] = [];
+    for (let i = 0; i < Math.min(totalQuestions, shuffledTerms.length); i++) {
+        const correctAnswer = shuffledTerms[i];
+        const otherTerms = allTerms.filter(t => t.id !== correctAnswer.id);
+        const wrongOptions = shuffleArray(otherTerms).slice(0, 3).map(t => t.term_hu);
+        const options = shuffleArray([correctAnswer.term_hu, ...wrongOptions]);
+        quizQuestions.push({ correctAnswer, options, definition: correctAnswer.definition });
     }
+    setQuestions(quizQuestions);
   }
 
   if (questions.length === 0) {
@@ -139,6 +167,8 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
   }
 
   const currentQuestion = questions[currentQuestionIndex];
+  const progressPercentage = (timeLeft / timePerQuestion) * 100;
+  const progressBarColor = timeLeft > 20 ? 'bg-sky-500' : timeLeft > 10 ? 'bg-amber-500' : 'bg-red-500';
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto animate-fade-in">
@@ -151,7 +181,7 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
       </button>
 
       <div className="bg-slate-800 rounded-xl shadow-lg p-6">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-700 pb-4 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-700 pb-4 mb-4">
             <h1 className="text-3xl font-bold text-white flex items-center gap-3"><SparklesIcon className="w-7 h-7 text-sky-400"/> AI Tudáspróba</h1>
             <div className="text-lg font-bold text-slate-300 mt-2 sm:mt-0">
                 <span>{currentQuestionIndex + 1} / {questions.length}</span>
@@ -160,6 +190,19 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
             </div>
         </div>
         
+        <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+                <p className="text-sm text-slate-400">Hátralévő idő:</p>
+                <p className="text-sm font-mono font-bold text-white bg-slate-700 px-2 py-0.5 rounded">{timeLeft}s</p>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2.5">
+                <div 
+                    className={`h-2.5 rounded-full ${progressBarColor}`} 
+                    style={{ width: `${progressPercentage}%`, transition: 'width 1s linear, background-color 0.5s' }}>
+                </div>
+            </div>
+        </div>
+
         <div className="mb-8">
             <p className="text-slate-400 mb-2 text-lg">Melyik fogalomra illik a leírás?</p>
             <blockquote className="border-l-4 border-sky-500 pl-4 py-2 bg-slate-700/50 rounded-r-lg">
@@ -173,9 +216,9 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
                 let buttonClass = 'bg-slate-700 hover:bg-slate-600';
                 if (isAnswered) {
                     if(isCorrect) {
-                        buttonClass = 'bg-green-500/80 text-white';
+                        buttonClass = 'bg-green-500/80 text-white ring-2 ring-green-400';
                     } else if (selectedAnswer === option) {
-                        buttonClass = 'bg-red-500/80 text-white';
+                        buttonClass = 'bg-red-500/80 text-white ring-2 ring-red-400';
                     } else {
                         buttonClass = 'bg-slate-700 opacity-60';
                     }
@@ -200,7 +243,7 @@ const QuizView: React.FC<QuizViewProps> = ({ terms, onBack }) => {
                     onClick={handleNextQuestion}
                     className="bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 px-8 rounded-lg transition-colors"
                 >
-                    Következő kérdés
+                    {currentQuestionIndex === questions.length - 1 ? 'Kvíz befejezése' : 'Következő kérdés'}
                 </button>
             </div>
         )}

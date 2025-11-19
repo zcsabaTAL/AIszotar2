@@ -22,11 +22,17 @@ export enum Category {
   Applications = "Alkalmazások",
 }
 
+export interface GroundingSource {
+  title: string;
+  uri: string;
+}
+
 export interface AIAnalysis {
   abstractDefinition: string;
   hungarianExample: string;
   relevance: string;
   relatedTerms: string[];
+  groundingSources?: GroundingSource[];
 }
 
 export interface ChatMessage {

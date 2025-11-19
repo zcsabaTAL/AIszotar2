@@ -57,3 +57,35 @@ export const LoadingSpinner = ({ className = 'w-8 h-8' }: { className?: string }
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
   </svg>
 );
+
+export const AppLogo = ({ className = 'w-10 h-10' }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" className={className}>
+    <defs>
+      <linearGradient id="logo_gradient" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#38bdf8" /> 
+        <stop offset="1" stopColor="#6366f1" />
+      </linearGradient>
+    </defs>
+    {/* Open Book Base */}
+    <path 
+        d="M10 16 C 10 13 13 13 18 13 C 22 13 24 17 24 17 C 24 17 26 13 30 13 C 35 13 38 13 38 16 V 36 C 38 39 35 39 30 39 C 26 39 24 35 24 35 C 24 35 22 39 18 39 C 13 39 10 39 10 36 Z" 
+        stroke="url(#logo_gradient)" 
+        strokeWidth="3" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+    />
+    {/* Spine / Neural Line */}
+    <path d="M24 17 V 35" stroke="url(#logo_gradient)" strokeWidth="2" strokeLinecap="round" />
+    
+    {/* AI/Spark Connectivity Rising from the book */}
+    <circle cx="24" cy="8" r="3" fill="url(#logo_gradient)" />
+    <path d="M24 11 V 17" stroke="url(#logo_gradient)" strokeWidth="2" />
+    
+    {/* Side Connections */}
+    <circle cx="14" cy="10" r="2" fill="url(#logo_gradient)" opacity="0.8" />
+    <path d="M14.5 11.5 L 22 16" stroke="url(#logo_gradient)" strokeWidth="1.5" opacity="0.8" />
+    
+    <circle cx="34" cy="10" r="2" fill="url(#logo_gradient)" opacity="0.8" />
+    <path d="M33.5 11.5 L 26 16" stroke="url(#logo_gradient)" strokeWidth="1.5" opacity="0.8" />
+  </svg>
+);
