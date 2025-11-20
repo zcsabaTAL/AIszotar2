@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Term, Scenario, ScenarioResult } from "../types";
+import { Term, Scenario, ScenarioResult, GolfChallenge, GolfResult } from "../types";
 
 const API_KEY = process.env.API_KEY;
 
@@ -161,6 +161,71 @@ export const evaluateScenario = async (scenario: Scenario, userPrompt: string): 
             aiResponse: "Hiba történt a szimuláció során.",
             critique: "Nem sikerült kiértékelni a promptot.",
             score: 0
+        };
+    }
+};
+
+export const evaluatePromptGolf = async (challenge: GolfChallenge, userPrompt: string): Promise<GolfResult> => {
+    const model = 'gemini-2.5-flash';
+
+    const prompt = `
+        Szerep: Szigorú AI Bíró a "Prompt Golf" versenyen.
+        
+        A feladat:
+        A felhasználó írt egy promptot: "${userPrompt}"
+        
+        A CÉL KIMENET KRITÉRIUMA (LEÍRÁS):
+        "${challenge.targetDescription}"
+        
+        1. lépés: Generáld le, mit válaszolna erre a promptra egy sztenderd AI asszisztens. (Ez lesz az "aiOutput").
+        
+        2. lépés: KIÉRTÉKELÉS - Ellenőrizd, hogy az általad generált "aiOutput" MEGFELEL-E a fenti KRITÉRIUMNAK.
+           - A "Cél Kimenet" egy LEÍRÁS (pl. "Egy 3 soros haiku"), NEM feltétlenül a konkrét szöveg, amit vissza kell adni (kivéve, ha idézőjelben konkrét szöveget kér a leírás).
+           - Ha a leírás azt kéri, hogy "Magyarázd el X-et", és az aiOutput egy magyarázat X-ről, akkor az SIKERES.
+           - Szigorúan vedd a formai követelményeket (pl. "csak a vezetéknév", "json formátum").
+           - Ha a kimenet tartalmaz felesleges szöveget (pl. "Itt van a lista:"), és a leírás tiltotta, akkor NEM SIKERES.
+        
+        Válasz JSON formátumban:
+        {
+          "aiOutput": "A generált szöveg...",
+          "isSuccess": true/false,
+          "reasoning": "Rövid magyarázat a felhasználónak (E/2-ben, pl: 'A válaszod helyes volt...'), miért fogadtad el vagy utasítottad el."
+        }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        aiOutput: { type: Type.STRING },
+                        isSuccess: { type: Type.BOOLEAN },
+                        reasoning: { type: Type.STRING }
+                    }
+                }
+            }
+        });
+        
+        const result = JSON.parse(response.text);
+        
+        // Approximate token count (chars / 4 is a rough estimate for English, Hungarian is denser, but char count is explicit in prompt golf usually)
+        // We will return just a number to be used for scoring.
+        return {
+            ...result,
+            tokenCountEstimate: Math.ceil(userPrompt.length / 4)
+        };
+
+    } catch (error) {
+        console.error("Error evaluating golf:", error);
+        return {
+            aiOutput: "Hiba a kiértékelésben.",
+            isSuccess: false,
+            reasoning: "Technikai hiba történt.",
+            tokenCountEstimate: 0
         };
     }
 };

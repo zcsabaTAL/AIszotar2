@@ -4,11 +4,12 @@ import { dictionaryData } from './data/dictionary';
 import { Term, Category } from './types';
 import { CATEGORIES } from './constants';
 import TermDetail from './components/TermDetail';
-import { SearchIcon, SparklesIcon, ChatIcon, BeakerIcon } from './components/Icons';
+import { SearchIcon, SparklesIcon, ChatIcon, BeakerIcon, FlagIcon } from './components/Icons';
 import ChatBot from './components/ChatBot';
 import ComparisonView from './components/ComparisonView';
 import QuizView from './components/QuizView';
 import ScenarioGymView from './components/ScenarioGymView';
+import PromptGolfView from './components/PromptGolfView';
 import { hasIllustration } from './components/IllustrationRegistry';
 
 const App: React.FC = () => {
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   const [comparisonTerms, setComparisonTerms] = useState<Term[]>([]);
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [isScenarioGymActive, setIsScenarioGymActive] = useState(false);
+  const [isPromptGolfActive, setIsPromptGolfActive] = useState(false);
 
   useEffect(() => {
     // Increment search frequency for top terms on load to simulate popularity
@@ -251,23 +253,33 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 relative">
-        {!selectedTerm && comparisonTerms.length !== 2 && !isQuizActive && !isScenarioGymActive && (
-            <div className="absolute top-6 right-6 z-10 flex gap-4">
-                <button
-                    onClick={() => setIsScenarioGymActive(true)}
-                    className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold px-4 py-2.5 rounded-lg shadow-lg hover:shadow-sky-500/10 transition-all transform hover:-translate-y-0.5 inline-flex items-center gap-2 group"
-                    title="Szituációs Labor - Gyakorolj!"
-                >
-                    <BeakerIcon className="w-5 h-5 text-sky-400 group-hover:text-sky-300" />
-                    <span className="hidden sm:inline">Szituációs Labor</span>
-                </button>
+        {!selectedTerm && comparisonTerms.length !== 2 && !isQuizActive && !isScenarioGymActive && !isPromptGolfActive && (
+            <div className="absolute top-6 right-6 z-10 flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsPromptGolfActive(true)}
+                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold px-4 py-2.5 rounded-lg shadow-lg hover:shadow-green-500/10 transition-all transform hover:-translate-y-0.5 inline-flex items-center gap-2 group"
+                        title="Prompt Golf - A hatékonyság mestere"
+                    >
+                        <FlagIcon className="w-5 h-5 text-green-400 group-hover:text-green-300" />
+                        <span className="hidden md:inline">Prompt Golf</span>
+                    </button>
+                    <button
+                        onClick={() => setIsScenarioGymActive(true)}
+                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold px-4 py-2.5 rounded-lg shadow-lg hover:shadow-sky-500/10 transition-all transform hover:-translate-y-0.5 inline-flex items-center gap-2 group"
+                        title="Szituációs Labor - Gyakorolj!"
+                    >
+                        <BeakerIcon className="w-5 h-5 text-sky-400 group-hover:text-sky-300" />
+                        <span className="hidden md:inline">Szituációs Labor</span>
+                    </button>
+                </div>
                 <button
                     onClick={() => setIsQuizActive(true)}
                     className="bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-300 hover:to-indigo-400 text-white font-bold px-5 py-2.5 rounded-lg shadow-lg hover:shadow-sky-500/25 transition-all transform hover:-translate-y-0.5 inline-flex items-center gap-2"
                     title="Tedd próbára a tudásod!"
                 >
                     <SparklesIcon className="w-5 h-5 text-white" />
-                    <span className="hidden sm:inline">AI Kvíz</span>
+                    <span className="hidden md:inline">AI Kvíz</span>
                 </button>
             </div>
         )}
@@ -276,6 +288,8 @@ const App: React.FC = () => {
             <QuizView terms={terms} onBack={() => setIsQuizActive(false)} />
         ) : isScenarioGymActive ? (
             <ScenarioGymView onBack={() => setIsScenarioGymActive(false)} />
+        ) : isPromptGolfActive ? (
+            <PromptGolfView onBack={() => setIsPromptGolfActive(false)} />
         ) : selectedTerm ? (
           <TermDetail term={selectedTerm} onBack={handleBack} onVote={handleVote} onSelectRelatedTerm={handleSelectRelatedTermByName} />
         ) : comparisonTerms.length === 2 ? (
@@ -287,7 +301,7 @@ const App: React.FC = () => {
 
       {isChatOpen && <ChatBot onClose={() => setIsChatOpen(false)} dictionary={terms} />}
       
-      {!isQuizActive && !isScenarioGymActive && (
+      {!isQuizActive && !isScenarioGymActive && !isPromptGolfActive && (
         <button 
           onClick={() => setIsChatOpen(true)}
           className="fixed bottom-6 right-6 bg-sky-600 hover:bg-sky-500 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110 z-50"

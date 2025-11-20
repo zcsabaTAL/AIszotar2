@@ -47,3 +47,19 @@ export interface ScenarioResult {
     critique: string;
     score: number;
 }
+
+export interface GolfChallenge {
+    id: string;
+    level: 'Kezdő' | 'Haladó' | 'Mester';
+    title: string;
+    targetDescription: string; // What the output should look like
+    forbiddenWords?: string[]; // Constraints
+    par?: number; // Target word count for prompt
+}
+
+export interface GolfResult {
+    isSuccess: boolean;
+    aiOutput: string;
+    reasoning: string;
+    tokenCountEstimate: number;
+}
